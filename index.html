@@ -465,17 +465,35 @@ select:focus { outline: none; border-color: #4a9eff; }
     opacity: 0.01; pointer-events: none; z-index: -1;
 }
 
-@media (max-width: 600px) {
+/* ═══ MODE MOBILE AUTO ═══ */
+@media (max-width: 768px) {
+    h1 { font-size: 1.15rem; line-height: 1.25; letter-spacing: 0.01em; }
+    #bg3d .grid { background-size: 60px 60px, 60px 60px; animation-duration: 40s; }
+    .signature span { font-size: 1.05rem; letter-spacing: 0.04em; }
+    #bg3d .halo { filter: blur(40px); }
+    #bg3d .halo.h3 { display: none; }
     #sideEffects .beam.b3,
     #sideEffects .beam.b4,
     #sideEffects .shape { display: none; }
+    #sideEffects .spark-bolt.sb3,
+    #sideEffects .spark-bolt.sb4,
+    #sideEffects .spark-bolt.sb5,
+    #sideEffects .spark-bolt.sb6 { display: none; }
+    .btn-primary { animation: none; }
+    .panel, .section, .upload-zone, .queue-item, .gallery-item { transition: none; }
+    #smokeCanvas { opacity: 0.35; }
+    #circuitCanvas { opacity: 0.5; }
 }
 
-@media (max-width: 480px) {
-    h1 { font-size: 1.15rem; line-height: 1.25; letter-spacing: 0.01em; }
-    #bg3d .grid { background-size: 60px 60px, 60px 60px; }
-    .signature span { font-size: 1.05rem; letter-spacing: 0.04em; }
-}
+/* ═══ MODE LÉGER (activé manuellement) ═══ */
+body.light-mode #circuitCanvas,
+body.light-mode #sideEffects { display: none !important; }
+body.light-mode #smokeCanvas { opacity: 0.25 !important; }
+body.light-mode #bg3d .grid { animation-duration: 60s !important; }
+body.light-mode #bg3d .grid::before { animation: none !important; }
+body.light-mode #bg3d .halo { animation: none !important; opacity: 0.4 !important; }
+body.light-mode .btn-primary { animation: none !important; }
+body.light-mode #lpepoPopup { display: none !important; }
 </style>
 </head>
 
@@ -580,6 +598,13 @@ select:focus { outline: none; border-color: #4a9eff; }
     </div>
 </div>
 
+<!-- BOUTON MODE LÉGER -->
+<div style="text-align: center; margin-bottom: 1rem; position: relative; z-index: 1;">
+    <button type="button" id="light-mode-btn" style="background: rgba(74,158,255,0.15); border: 1px solid rgba(74,158,255,0.4); color: #4a9eff; padding: 0.6rem 1.2rem; border-radius: 10px; font-family: inherit; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;">
+        ⚡ Activer le mode léger
+    </button>
+</div>
+
 <!-- SECTION TECHNIQUE -->
 <div class="section" id="section-tech">
     <div class="section-header" data-toggle="section-tech">
@@ -598,10 +623,9 @@ select:focus { outline: none; border-color: #4a9eff; }
             <div class="control-row">
                 <label class="control-label">Qualité vidéo</label>
                 <select id="resolution-select">
-    <option value="480p">480p — vidéos longues (jusqu'à 40s)</option>
-    <option value="720p" selected>720p — équilibré (jusqu'à 20s)</option>
-    <option value="1080p">1080p — HD (jusqu'à 10s)</option>
-</select>
+                    <option value="480p">480p — vidéos longues (jusqu'à 40s)</option>
+                    <option value="720p" selected>720p — équilibré (jusqu'à 20s)</option>
+                    <option value="1080p">1080p — HD (jusqu'à 10s)</option>
                 </select>
             </div>
             <div class="control-row">
@@ -710,7 +734,7 @@ select:focus { outline: none; border-color: #4a9eff; }
         return {
             segments, age: 0,
             maxLife: 3 + Math.random() * 4,
-            hue: 200 + Math.random() * 60, // Bleu/cyan pour rester neutre
+            hue: 200 + Math.random() * 60,
             pulsePhase: Math.random() * Math.PI * 2
         };
     }
@@ -778,6 +802,7 @@ select:focus { outline: none; border-color: #4a9eff; }
 (function initSmoke() {
     const canvas = document.getElementById('smokeCanvas');
     if (!canvas) return;
+    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
     const ctx = canvas.getContext('2d');
     let W = 0, H = 0;
     const DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -799,8 +824,7 @@ select:focus { outline: none; border-color: #4a9eff; }
     window.addEventListener('touchend', () => { mouse.active = false; });
 
     const particles = [];
-    const MAX_PARTICLES = 50;
-    let hueShift = 0;
+    const MAX_PARTICLES = 30;
 
     function spawn() {
         if (!mouse.active) return;
@@ -814,8 +838,7 @@ select:focus { outline: none; border-color: #4a9eff; }
             vy: (Math.random() - 0.5) * 0.4 - 0.1,
             life: 1,
             decay: 0.012 + Math.random() * 0.015,
-            size: 15 + Math.random() * 25,
-            hue: 200 + Math.random() * 60 // Bleu/cyan
+            size: 15 + Math.random() * 25
         });
     }
 
@@ -831,19 +854,17 @@ select:focus { outline: none; border-color: #4a9eff; }
             p.vx *= 0.98; p.vy *= 0.98; p.vy -= 0.0015;
             p.life -= p.decay;
             if (p.life <= 0) { particles.splice(i, 1); continue; }
-            const alpha = p.life * 0.12;
+            const alpha = p.life * 0.08;
             const r = p.size * (1.1 - p.life * 0.4);
             const grad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-            grad.addColorStop(0, 'hsla(' + (p.hue + hueShift) + ', 80%, 65%, ' + alpha + ')');
-            grad.addColorStop(0.5, 'hsla(' + (p.hue + hueShift) + ', 75%, 50%, ' + (alpha * 0.4) + ')');
-            grad.addColorStop(1, 'hsla(' + (p.hue + hueShift) + ', 70%, 40%, 0)');
+            grad.addColorStop(0, 'rgba(255, 255, 255, ' + alpha + ')');
+            grad.addColorStop(0.5, 'rgba(255, 255, 255, ' + (alpha * 0.4) + ')');
+            grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
             ctx.fill();
         }
-        hueShift += 0.12;
-        if (hueShift > 360) hueShift -= 360;
         ctx.globalCompositeOperation = 'source-over';
         requestAnimationFrame(tick);
     }
@@ -897,14 +918,14 @@ const FRAME_RATE = 24;
 let createIntervalMs = 62000;
 const CREATE_INTERVAL_MIN = 62000;
 const CREATE_INTERVAL_MAX = 90000;
-const POLL_INTERVAL_SEC = 8;
+const POLL_INTERVAL_SEC = 20;
 const MAX_POLL_ATTEMPTS = 100;
 const API_KEY_STORAGE = 'fantasy_api_key';
 const MAX_IMAGE_SIZE = 12 * 1024 * 1024;
 const THUMBNAIL_MAX_WIDTH = 200;
 
 // ══════════════════════════════════════════════════════════
-// LIMITES DE QUALITÉ (API Agnes)
+// LIMITES DE QUALITÉ (API Agnes v2.0)
 // ══════════════════════════════════════════════════════════
 const RESOLUTION_LIMITS = {
     '480p':  { maxFrames: 961, durations: [5, 10, 15, 20, 25, 30, 35, 40] },
@@ -938,6 +959,7 @@ function renderDurationOptions(resolution) {
     state.durationFrames = parseInt(select.value, 10);
     console.log('[Fantasy] Qualité ' + resolution + ' → durée : ' + select.options[select.selectedIndex].text);
 }
+
 // ══════════════════════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════════════════════
@@ -950,7 +972,7 @@ const state = {
     failed: 0,
     selectedEffect: null,
     mainPrompt: '',
-        format: '9:16',
+    format: '9:16',
     resolution: '720p',
     framing: 'random',
     intensity: 'random',
@@ -1295,6 +1317,51 @@ function renderStyles() {
 // ══════════════════════════════════════════════════════════
 // PROMPT
 // ══════════════════════════════════════════════════════════
+
+// ══════════════════════════════════════════════════════════
+// PRÉ-RECADRAGE DE L'IMAGE (au ratio demandé)
+// ══════════════════════════════════════════════════════════
+function preCropImage(dataUri, targetAspect) {
+    return new Promise(function(resolve) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                const parts = targetAspect.split(':');
+                const targetRatio = parseInt(parts[0]) / parseInt(parts[1]);
+                
+                const imgRatio = img.width / img.height;
+                let sx = 0, sy = 0, sw = img.width, sh = img.height;
+                
+                if (imgRatio > targetRatio) {
+                    sw = img.height * targetRatio;
+                    sx = (img.width - sw) / 2;
+                } else if (imgRatio < targetRatio) {
+                    sh = img.width / targetRatio;
+                    sy = (img.height - sh) / 2;
+                }
+                
+                const canvas = document.createElement('canvas');
+                const targetW = targetRatio < 1 ? 720 : 1280;
+                const targetH = targetRatio < 1 ? 1280 : 720;
+                canvas.width = targetW;
+                canvas.height = targetH;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
+                
+                const cropped = canvas.toDataURL('image/jpeg', 0.9);
+                console.log('[Fantasy] Image pré-recadrée :', img.width + 'x' + img.height, '→', targetW + 'x' + targetH);
+                resolve(cropped);
+            } catch (e) {
+                console.warn('[Fantasy] Erreur recadrage, image originale utilisée:', e.message);
+                resolve(dataUri);
+            }
+        };
+        img.onerror = function() { resolve(dataUri); };
+        img.src = dataUri;
+    });
+}
+
 function buildPrompt() {
     const all = AMBIANCE.concat(STYLIZE);
     const eff = state.selectedEffect ? all.find(function(s) { return s.id === state.selectedEffect; }) : null;
@@ -1302,7 +1369,6 @@ function buildPrompt() {
     const hasUser = state.mainPrompt && state.mainPrompt.trim().length > 0;
     const parts = [];
 
-    // ─── ANCRAGE PHOTORÉALISTE STRICT ───
     if (isStylize) {
         parts.push('Animate this image as the starting frame. Apply the following style transformation while keeping photographic realism:');
     } else {
@@ -1313,35 +1379,32 @@ function buildPrompt() {
         );
     }
 
-    // ─── RÉALISME PUR (sans folklore cinéma) ───
-    parts.push(
+       parts.push(
         'Natural realistic rendering, true-to-life skin and textures, ' +
         'real-world lighting and shadows, believable physics, ' +
-        'subtle natural movement, minimal but lifelike animation'
+        'subtle natural movement, minimal but lifelike animation. ' +
+        'IMPORTANT: The video MUST start with the EXACT framing of the source image. ' +
+        'No zoom-in, no crop, no reframe at the beginning. ' +
+        'The camera stays static at the source framing. ' +
+        'Do NOT cut off the top of the subject\'s head. ' +
+        'Preserve the entire original composition from frame 1 to the last frame.'
     );
 
-    // ─── INTERDICTIONS ───
-    parts.push(
+       parts.push(
         'No cartoon, no anime, no painting, no illustration, no 3D render, no CGI look, ' +
         'no plastic skin, no distortions, no warped anatomy, no extra limbs or fingers, ' +
-        'no text, no watermarks, no AI artifacts, no over-smoothing, no artificial filters'
+        'no text, no watermarks, no AI artifacts, no over-smoothing, no artificial filters. ' +
+        'No initial zoom, no opening push-in, no framing change at start, no head cropping.'
     );
 
-    // ─── EFFET CHOISI ───
     if (eff) parts.push(eff.prompt);
-
-    // ─── PROMPT UTILISATEUR ───
     if (hasUser) parts.push('Additional direction: ' + state.mainPrompt.trim());
-
-    // ─── CADRAGE & INTENSITÉ (SOBRES) ───
     if (state.framing !== 'random' && FRAMING[state.framing]) parts.push(FRAMING[state.framing]);
     if (state.intensity !== 'random' && INTENSITY[state.intensity]) parts.push(INTENSITY[state.intensity]);
     else parts.push('very subtle natural movement');
 
-    // ─── UNE SEULE ACTION SIMPLE ───
     parts.push(randomItem(RANDOM_ACTIONS));
 
-    // ─── FORMAT (MINIMAL) ───
     if (state.format === '16:9') {
         parts.push('Landscape 16:9, no text, no watermarks');
     } else {
@@ -1352,7 +1415,7 @@ function buildPrompt() {
 }
 
 // ══════════════════════════════════════════════════════════
-// API AGNES
+// API AGNES v2.0
 // ══════════════════════════════════════════════════════════
 async function apiFetch(url, options, label) {
     for (let attempt = 0; attempt < 7; attempt++) {
@@ -1360,14 +1423,14 @@ async function apiFetch(url, options, label) {
         try {
             const res = await fetch(url, options);
             if (res.status === 429) {
-                const w = [15, 30, 45, 60, 90, 120, 180][Math.min(attempt, 6)];
-                setStatus('L\'IA se prépare… (' + w + 's)');
+                const w = [30, 60, 90, 120, 180, 300, 600][Math.min(attempt, 6)];
+                setStatus('Limite atteinte, attente… (' + w + 's)');
                 await sleep(w * 1000);
                 continue;
             }
             if (res.status === 503) {
-                const w = [5, 10, 15, 20, 30, 45][Math.min(attempt, 5)];
-                setStatus('Vidéo en préparation… (' + w + 's)');
+                const w = [30, 60, 120, 180, 300, 600][Math.min(attempt, 5)];
+                setStatus('Serveur saturé, nouvelle tentative… (' + w + 's)');
                 await sleep(w * 1000);
                 continue;
             }
@@ -1383,6 +1446,17 @@ async function apiFetch(url, options, label) {
 }
 
 async function createVideoTask(imageDataUri, prompt) {
+    const n = Math.round((state.durationFrames - 1) / 8);
+    const safeFrames = 8 * n + 1;
+
+    const limit = RESOLUTION_LIMITS[state.resolution] ? RESOLUTION_LIMITS[state.resolution].maxFrames : 481;
+    const finalFrames = Math.min(safeFrames, limit);
+
+    if (finalFrames !== state.durationFrames) {
+        console.warn('[Fantasy] num_frames ajusté :', state.durationFrames, '→', finalFrames, '(' + state.resolution + ')');
+        state.durationFrames = finalFrames;
+    }
+
     const res = await apiFetch(API_BASE + '/videos', {
         method: 'POST',
         headers: {
@@ -1393,7 +1467,7 @@ async function createVideoTask(imageDataUri, prompt) {
             model: MODEL_VIDEO,
             prompt: prompt,
             image: imageDataUri,
-            num_frames: state.durationFrames,
+            num_frames: finalFrames,
             frame_rate: FRAME_RATE
         })
     }, 'Création');
@@ -1407,6 +1481,7 @@ async function createVideoTask(imageDataUri, prompt) {
     if (!videoId) throw new Error('Pas de video_id');
     return videoId;
 }
+
 async function pollVideo(videoId, onProgress) {
     const estSec = 30;
     for (let r = estSec; r > 0; r--) {
@@ -1443,6 +1518,7 @@ async function pollVideo(videoId, onProgress) {
     }
     throw new Error('Délai dépassé');
 }
+
 // ══════════════════════════════════════════════════════════
 // FILE D'ATTENTE & GALERIE
 // ══════════════════════════════════════════════════════════
@@ -1487,8 +1563,12 @@ async function createTaskOnly(item) {
     item.status = 'creating';
     item.progress = 'Préparation…';
     renderQueue();
+    
+    // 🎯 Pré-recadrage au bon ratio avant envoi à l'API
+    const croppedImage = await preCropImage(item.image.dataUri, state.format);
+    
     const prompt = buildPrompt();
-    const videoId = await createVideoTask(item.image.dataUri, prompt);
+    const videoId = await createVideoTask(croppedImage, prompt);
     item.videoId = videoId;
     item.startTime = Date.now();
     item.status = 'processing';
@@ -1642,11 +1722,11 @@ function stopGeneration() {
     const fmt = document.getElementById('format-select');
     if (fmt) fmt.addEventListener('change', function(e) { state.format = e.target.value; });
 
-        const resSelect = document.getElementById('resolution-select');
+    const resSelect = document.getElementById('resolution-select');
     if (resSelect) {
         resSelect.addEventListener('change', function(e) {
             state.resolution = e.target.value;
-            // Pas besoin de régénérer, durées identiques en 768P et 2K
+            renderDurationOptions(state.resolution);
         });
     }
 
@@ -1667,8 +1747,27 @@ function stopGeneration() {
     renderImages();
     renderQueue();
 
-        // Initialise le menu des durées
-        renderDurationOptions(state.resolution);
+    // MODE LÉGER
+    const lightModeBtn = document.getElementById('light-mode-btn');
+    const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const savedLightMode = localStorage.getItem('fantasy_light_mode');
+
+    if (savedLightMode === '1' || (savedLightMode === null && isMobileDevice)) {
+        document.body.classList.add('light-mode');
+        if (lightModeBtn) lightModeBtn.textContent = '✨ Désactiver le mode léger';
+    }
+
+    if (lightModeBtn) {
+        lightModeBtn.addEventListener('click', function() {
+            const isActive = document.body.classList.toggle('light-mode');
+            lightModeBtn.textContent = isActive ? '✨ Désactiver le mode léger' : '⚡ Activer le mode léger';
+            localStorage.setItem('fantasy_light_mode', isActive ? '1' : '0');
+            showToast(isActive ? 'Mode léger activé' : 'Mode complet activé', 'success', 1500);
+        });
+    }
+
+    // Initialise le menu des durées selon la qualité par défaut
+    renderDurationOptions(state.resolution);
 
     console.log('[Fantasy] Prêt.');
 })();
