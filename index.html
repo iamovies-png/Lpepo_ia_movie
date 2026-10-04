@@ -487,13 +487,57 @@ select:focus { outline: none; border-color: #4a9eff; }
 
 /* ═══ MODE LÉGER (activé manuellement) ═══ */
 body.light-mode #circuitCanvas,
-body.light-mode #sideEffects { display: none !important; }
+body.light-mode #sideEffects,
+body.light-mode #bg3d { display: none !important; }
 body.light-mode #smokeCanvas { opacity: 0.25 !important; }
 body.light-mode #bg3d .grid { animation-duration: 60s !important; }
 body.light-mode #bg3d .grid::before { animation: none !important; }
 body.light-mode #bg3d .halo { animation: none !important; opacity: 0.4 !important; }
 body.light-mode .btn-primary { animation: none !important; }
 body.light-mode #lpepoPopup { display: none !important; }
+
+/* ═══════════════════════════════════════════════════════════
+   MODE MOBILE ULTRA-LÉGER — désactive TOUS les effets
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 900px) {
+    /* Fond : noir uni au lieu du dégradé + grille 3D */
+    body { background: #030810 !important; }
+    #bg3d { display: none !important; }
+    
+    /* Désactive TOUS les canvases et effets */
+    #circuitCanvas,
+    #smokeCanvas,
+    #sideEffects { display: none !important; }
+    
+    /* Désactive les halos */
+    #bg3d .halo { display: none !important; }
+    
+    /* Désactive le pseudo Lpepo sur mobile */
+    #lpepoPopup { display: none !important; }
+    
+    /* Désactive toutes les animations CSS sur mobile */
+    h1 { animation: none !important; }
+    .signature span { animation: none !important; }
+    .api-save-btn { transition: none !important; }
+    .btn-primary { animation: none !important; }
+    .panel, .section, .upload-zone, .queue-item, .gallery-item { transition: none !important; }
+    
+    /* Désactive le backdrop-filter (très coûteux sur mobile) */
+    .panel, .section, .upload-zone, .info-banner { 
+        backdrop-filter: none !important; 
+        -webkit-backdrop-filter: none !important; 
+    }
+    
+    /* Simplifie les ombres (moins de calcul GPU) */
+    .panel, .section, .upload-zone { box-shadow: 0 4px 16px rgba(0,0,0,0.5) !important; }
+    .btn-primary, .api-save-btn { box-shadow: none !important; }
+    
+    /* Supprime les transitions au survol */
+    .section-header:hover { background: transparent !important; }
+    .upload-zone:hover, .upload-zone:active { transform: none !important; }
+    .style-card.selected { transition: none !important; }
+}
+
 </style>
 </head>
 
@@ -696,6 +740,8 @@ body.light-mode #lpepoPopup { display: none !important; }
 // CIRCUITS ÉLECTRIQUES
 // ══════════════════════════════════════════════════════════
 (function initCircuits() {
+    // Désactive complètement sur mobile
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 900) return;
     const canvas = document.getElementById('circuitCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -800,6 +846,8 @@ body.light-mode #lpepoPopup { display: none !important; }
 // ÉCRAN DE FUMÉE DERRIÈRE LA SOURIS
 // ══════════════════════════════════════════════════════════
 (function initSmoke() {
+    // Désactive complètement sur mobile
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 900) return;
     const canvas = document.getElementById('smokeCanvas');
     if (!canvas) return;
     if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
@@ -875,6 +923,8 @@ body.light-mode #lpepoPopup { display: none !important; }
 // ANIMATION PSEUDO "Lpepo" — apparaît sur les côtés
 // ══════════════════════════════════════════════════════════
 (function initLpepoPopup() {
+    // Désactive complètement sur mobile
+    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 900) return;
     const popup = document.getElementById('lpepoPopup');
     if (!popup) {
         console.warn('[Lpepo] Élément #lpepoPopup introuvable');
@@ -1319,26 +1369,21 @@ function renderStyles() {
 // ══════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════
-// PRÉ-RECADRAGE DE L'IMAGE (au ratio demandé)
+// PRÉ-RECADRAGE DE L'IMAGE (compense le zoom d'Agnes)
+// On ÉLARGIT l'image (bordures) au lieu de la rogner
 // ══════════════════════════════════════════════════════════
 function preCropImage(dataUri, targetAspect) {
     return new Promise(function(resolve) {
         const img = new Image();
         img.onload = function() {
             try {
+                // ⚙️ On ÉLARGIT avec du noir autour de l'image
+                // pour compenser le zoom d'Agnes.
+                // 0.60 = l'image occupe 60% du cadre, 40% de bordure
+                const FRAME_SCALE = 0.44;
+                
                 const parts = targetAspect.split(':');
                 const targetRatio = parseInt(parts[0]) / parseInt(parts[1]);
-                
-                const imgRatio = img.width / img.height;
-                let sx = 0, sy = 0, sw = img.width, sh = img.height;
-                
-                if (imgRatio > targetRatio) {
-                    sw = img.height * targetRatio;
-                    sx = (img.width - sw) / 2;
-                } else if (imgRatio < targetRatio) {
-                    sh = img.width / targetRatio;
-                    sy = (img.height - sh) / 2;
-                }
                 
                 const canvas = document.createElement('canvas');
                 const targetW = targetRatio < 1 ? 720 : 1280;
@@ -1347,13 +1392,40 @@ function preCropImage(dataUri, targetAspect) {
                 canvas.height = targetH;
                 
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, sx, sy, sw, sh, 0, 0, targetW, targetH);
                 
-                const cropped = canvas.toDataURL('image/jpeg', 0.9);
-                console.log('[Fantasy] Image pré-recadrée :', img.width + 'x' + img.height, '→', targetW + 'x' + targetH);
-                resolve(cropped);
+                // Fond noir
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(0, 0, targetW, targetH);
+                
+                // Calculer la taille de l'image à l'intérieur du cadre
+                const imgRatio = img.width / img.height;
+                let drawW, drawH;
+                if (imgRatio > targetRatio) {
+                    drawW = targetW * FRAME_SCALE;
+                    drawH = drawW / imgRatio;
+                } else {
+                    drawH = targetH * FRAME_SCALE;
+                    drawW = drawH * imgRatio;
+                }
+                
+                // Centrer l'image dans le cadre noir
+                const dx = (targetW - drawW) / 2;
+                const dy = (targetH - drawH) / 2;
+                
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, dx, dy, drawW, drawH);
+                
+                const result = canvas.toDataURL('image/jpeg', 0.92);
+                console.log(
+                    '[Fantasy] Image encadrée (bordures noires) :',
+                    img.width + 'x' + img.height,
+                    '→',
+                    targetW + 'x' + targetH,
+                    '(image à ' + Math.round(FRAME_SCALE * 100) + '% du cadre)'
+                );
+                resolve(result);
             } catch (e) {
-                console.warn('[Fantasy] Erreur recadrage, image originale utilisée:', e.message);
+                console.warn('[Fantasy] Erreur encadrement, image originale utilisée:', e.message);
                 resolve(dataUri);
             }
         };
@@ -1361,7 +1433,9 @@ function preCropImage(dataUri, targetAspect) {
         img.src = dataUri;
     });
 }
-
+// ══════════════════════════════════════════════════════════
+// PROMPT
+// ══════════════════════════════════════════════════════════
 function buildPrompt() {
     const all = AMBIANCE.concat(STYLIZE);
     const eff = state.selectedEffect ? all.find(function(s) { return s.id === state.selectedEffect; }) : null;
@@ -1379,7 +1453,7 @@ function buildPrompt() {
         );
     }
 
-       parts.push(
+    parts.push(
         'Natural realistic rendering, true-to-life skin and textures, ' +
         'real-world lighting and shadows, believable physics, ' +
         'subtle natural movement, minimal but lifelike animation. ' +
@@ -1390,7 +1464,7 @@ function buildPrompt() {
         'Preserve the entire original composition from frame 1 to the last frame.'
     );
 
-       parts.push(
+    parts.push(
         'No cartoon, no anime, no painting, no illustration, no 3D render, no CGI look, ' +
         'no plastic skin, no distortions, no warped anatomy, no extra limbs or fingers, ' +
         'no text, no watermarks, no AI artifacts, no over-smoothing, no artificial filters. ' +
@@ -1684,6 +1758,15 @@ function stopGeneration() {
 // ══════════════════════════════════════════════════════════
 (function init() {
     console.log('[Fantasy] Init…');
+    
+    // 🎯 Détection mobile → active le mode ultra-léger automatiquement
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth <= 900;
+    if (isMobile) {
+        document.body.classList.add('light-mode');
+        // Ajoute aussi une classe spécifique mobile ultra-léger
+        document.body.classList.add('mobile-lite');
+        console.log('[Fantasy] Mode mobile ultra-léger activé');
+    }
 
     const saveBtn = document.getElementById('api-save-btn');
     if (saveBtn) saveBtn.addEventListener('click', saveApiKey);
